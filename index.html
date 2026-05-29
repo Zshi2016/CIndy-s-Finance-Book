@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>个人财务仪表板</title>
+<style>
+  :root {
+    --bg: #f5f6fa; --card: #fff; --text: #2d3436; --sub: #636e72;
+    --green: #00b894; --red: #e17055; --blue: #0984e3; --gold: #fdcb6e;
+    --purple: #6c5ce7; --border: #dfe6e9; --shadow: 0 2px 8px rgba(0,0,0,0.06);
+    --radius: 12px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: -apple-system, "Microsoft YaHei", "PingFang SC", sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; padding: 20px; }
+  .container { max-width: 1240px; margin:0 auto; }
+  .header { background: linear-gradient(135deg, #2d3436 0%, #636e72 100%); color: #fff; padding: 28px 36px; border-radius: var(--radius); margin-bottom: 20px; display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:12px; }
+  .header h1 { font-size: 26px; }
+  .header .date { opacity: 0.7; font-size: 13px; }
+  .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 20px; }
+  .s-card { background: var(--card); border-radius: var(--radius); padding: 18px 22px; box-shadow: var(--shadow); border-left: 4px solid transparent; }
+  .s-card.t1 { border-left-color: var(--blue); } .s-card.t2 { border-left-color: var(--green); }
+  .s-card.t3 { border-left-color: var(--purple); } .s-card.t4 { border-left-color: var(--gold); }
+  .s-card .l { font-size: 12px; color: var(--sub); margin-bottom: 4px; }
+  .s-card .v { font-size: 24px; font-weight: 700; }
+  .s-card .s { font-size: 11px; color: var(--sub); margin-top: 2px; }
+  .pos { color: var(--green); } .neg { color: var(--red); }
+  .tabs { display: flex; gap: 0; border-bottom: 2px solid var(--border); margin-bottom: 20px; overflow-x:auto; }
+  .tab { padding: 10px 22px; cursor: pointer; font-size: 14px; color: var(--sub); border-bottom: 2px solid transparent; margin-bottom: -2px; white-space:nowrap; transition: 0.2s; }
+  .tab.active { color: var(--blue); border-bottom-color: var(--blue); font-weight: 600; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .section { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 18px; overflow: hidden; }
+  .sec-h { padding: 16px 22px; border-bottom: 1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+  .sec-h h2 { font-size: 16px; font-weight: 600; }
+  .sec-h .sub { font-size: 12px; color: var(--sub); }
+  .sec-b { padding: 18px 22px; }
+  .sec-b.np { padding: 0; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; padding:9px 14px; background:#f8f9fa; color:var(--sub); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; }
+  td { padding:10px 14px; border-top:1px solid var(--border); }
+  tr:hover td { background:#f8f9fa; }
+  .ar { text-align:right; font-family:"SF Mono","Consolas",monospace; }
+  .tag { display:inline-block; padding:2px 10px; border-radius:12px; font-size:11px; font-weight:600; }
+  .tg-save { background:#dfe6e9; color:#636e72; } .tg-spend { background:#ffeaa7; color:#d68910; }
+  .tg-invest { background:#81ecec; color:#00897b; } .tg-loan { background:#fab1a0; color:#c0392b; }
+  .tg-salary { background:#a29bfe; color:#4a3fbf; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  .grid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+  @media (max-width:768px) { .grid2,.grid3 { grid-template-columns:1fr; } }
+  .alert { padding:12px 16px; border-radius:8px; margin-bottom:10px; font-size:13px; border-left:4px solid; }
+  .al-red { background:#fff5f5; border-color:var(--red); color:#c0392b; }
+  .al-yellow { background:#fffdf0; border-color:var(--gold); color:#8b6914; }
+  .al-green { background:#f0fff4; border-color:var(--green); color:#00897b; }
+  .al-blue { background:#f0f8ff; border-color:var(--blue); color:#0056b3; }
+  .cf-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); }
+  .cf-row:last-child { border-bottom:none; }
+  .cf-l { font-size:13px; } .cf-a { font-weight:600; font-size:14px; }
+  .cf-a.in { color:var(--green); } .cf-a.out { color:var(--red); }
+  .rec { padding:14px 18px; border-radius:8px; margin-bottom:8px; display:flex; gap:12px; align-items:flex-start; }
+  .rec.urgent { background:#fff5f5; } .rec.important { background:#fffdf0; } .rec.optimize { background:#f0f8ff; }
+  .rec-icon { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0; }
+  .rec.urgent .rec-icon { background:#ffe0e0; } .rec.important .rec-icon { background:#fff3c4; } .rec.optimize .rec-icon { background:#d6eeff; }
+  .rec-t { font-weight:600; font-size:14px; margin-bottom:3px; } .rec-d { font-size:12px; color:var(--sub); }
+  .bar { background:#eee; border-radius:4px; height:6px; overflow:hidden; }
+  .bar-f { height:100%; border-radius:4px; }
+  .footer { text-align:center; padding:20px; color:var(--sub); font-size:11px; }
+  .sub-sec { margin-bottom:18px; }
+  .sub-sec h3 { font-size:14px; margin-bottom:10px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <div><h1>个人财务仪表板</h1><div class="date">数据截至 2026年5月28日</div></div>
+  <div style="font-size:13px; opacity:0.8;">📋 11个账户 · 总资产 ¥845.2万 · 净资产 ¥300.2万</div>
+</div>
+
+<div class="summary">
+  <div class="s-card t1"><div class="l">总资产（含代管）</div><div class="v">¥845.2万</div><div class="s">自己 ¥611.3万 + 代管 ¥233.9万</div></div>
+  <div class="s-card t2"><div class="l">净资产（总资产-房贷）</div><div class="v">¥300.2万</div><div class="s">含房产净值则 ~¥1,281万</div></div>
+  <div class="s-card t3"><div class="l">月度收支缺口（优化后）</div><div class="v neg">-¥5,799</div><div class="s">比优化前改善 ¥15,000/月</div></div>
+  <div class="s-card t4"><div class="l">投资总回报</div><div class="v pos">+¥74.6万 (+13.2%)</div><div class="s">¥567万本金 · 含代管</div></div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="sw(0)">账户总览</div>
+  <div class="tab" onclick="sw(1)">投资组合</div>
+  <div class="tab" onclick="sw(2)">房产</div>
+  <div class="tab" onclick="sw(3)">现金流·消费</div>
+  <div class="tab" onclick="sw(4)">分析建议</div>
+</div>
+
+<!-- ===== TAB 0: 账户总览 ===== -->
+<div class="tab-content active" id="t0">
+  <div class="grid2">
+    <div class="section">
+      <div class="sec-h"><h2>全部账户</h2><span class="sub">共11个 · 2026.5.28</span></div>
+      <div class="sec-b np">
+        <table>
+          <thead><tr><th>账户</th><th>用途</th><th>类别</th><th class="ar">余额/市值</th></tr></thead>
+          <tbody>
+            <tr><td><strong>农业银行</strong></td><td>储蓄·理财·资金中转</td><td><span class="tag tg-save">储蓄</span></td><td class="ar">¥1,040,255</td></tr>
+            <tr><td style="padding-left:26px;color:var(--sub)">├ 活期</td><td style="color:var(--sub)">应急+中信中转</td><td></td><td class="ar" style="color:var(--sub)">209,510</td></tr>
+            <tr><td style="padding-left:26px;color:var(--sub)">├ 理财·T+1</td><td style="color:var(--sub)">本金¥150,000×2 · ¥165,148+¥158,128</td><td></td><td class="ar" style="color:var(--sub)">323,276</td></tr>
+            <tr><td style="padding-left:26px;color:var(--sub)">└ 理财·7/8到期</td><td style="color:var(--sub)">本金¥500,000 · ¥507,513</td><td></td><td class="ar" style="color:var(--sub)">507,513</td></tr>
+
+            <tr><td><strong>工商银行</strong></td><td>房贷·黄金·天天盈</td><td><span class="tag tg-loan">房贷卡</span></td><td class="ar">¥424,410</td></tr>
+            <tr><td style="padding-left:26px;color:var(--sub)">├ 活期</td><td style="color:var(--sub)">房贷缓冲 · T+0即时</td><td></td><td class="ar" style="color:var(--sub)">55,000</td></tr>
+            <tr><td style="padding-left:26px;color:var(--sub)">├ 天天盈1号</td><td style="color:var(--sub)">4个月房贷 · 1.73% · T+1</td><td></td><td class="ar" style="color:var(--sub)">130,540</td></tr>
+            <tr><td style="padding-left:26px;color:var(--sub)">├ 天天盈2号</td><td style="color:var(--sub)">黄金储备金 · 1.74% · T+1</td><td></td><td class="ar" style="color:var(--sub)">200,000</td></tr>
+            <tr><td style="padding-left:26px;color:var(--sub)">└ 积存金 (40g)</td><td style="color:var(--sub)">¥949.6/g成本 · ¥972/g现价</td><td></td><td class="ar" style="color:var(--sub)">38,870</td></tr>
+
+            <tr><td><strong>华夏银行</strong></td><td>工资卡 · 代付·转余额宝</td><td><span class="tag tg-salary">工资卡</span></td><td class="ar">¥168,286</td></tr>
+
+            <tr><td><strong>建设银行</strong></td><td>房租 · 梯次理财</td><td><span class="tag tg-spend">支出</span></td><td class="ar">¥136,591</td></tr>
+            <tr><td style="padding-left:26px;color:var(--sub)">├ 嘉鑫稳利(7天)</td><td style="color:var(--sub)">~2.5% · 6/16付房租</td><td></td><td class="ar" style="color:var(--sub)">33,000</td></tr>
+            <tr><td style="padding-left:26px;color:var(--sub)">├ 嘉鑫稳利(30天)</td><td style="color:var(--sub)">~3% · 9/16付房租</td><td></td><td class="ar" style="color:var(--sub)">60,000</td></tr>
+            <tr><td style="padding-left:26px;color:var(--sub)">└ 龙钱宝1号</td><td style="color:var(--sub)">~2% · 随时可取</td><td></td><td class="ar" style="color:var(--sub)">43,591</td></tr>
+
+            <tr><td><strong>江苏银行</strong></td><td>美元理财·定存·活钱</td><td><span class="tag tg-invest">投资</span></td><td class="ar">¥385,484</td></tr>
+            <tr><td style="padding-left:26px;color:var(--sub)">├ $10,000定存(26/8/24到期)</td><td style="color:var(--sub)">1年期3%</td><td></td><td class="ar" style="color:var(--sub)">~67,812</td></tr>
+            <tr><td style="padding-left:26px;color:var(--sub)">├ $12,000定存(27/2/1到期)</td><td style="color:var(--sub)">1年期3%</td><td></td><td class="ar" style="color:var(--sub)">~81,374</td></tr>
+            <tr><td style="padding-left:26px;color:var(--sub)">├ 理财$16,227(本金$16,000)</td><td style="color:var(--sub)">25/10/15买入 · T+2 · 年化2.30%</td><td></td><td class="ar" style="color:var(--sub)">~110,053</td></tr>
+            <tr><td style="padding-left:26px;color:var(--sub)">├ 理财$13,155(本金$13,000)</td><td style="color:var(--sub)">25/10/15买入 · T+2 · 年化1.93%</td><td></td><td class="ar" style="color:var(--sub)">~89,217</td></tr>
+            <tr><td style="padding-left:26px;color:var(--sub)">└ 活钱理财</td><td style="color:var(--sub)">本金¥35,484 · T+1 · 年化1.42%</td><td></td><td class="ar" style="color:var(--sub)">35,799</td></tr>
+            <tr><td><strong>中国银行</strong></td><td>信用卡还款·美元消费</td><td><span class="tag tg-spend">消费</span></td><td class="ar">¥35,809</td></tr>
+            <tr><td style="padding-left:26px;color:var(--sub)">├ 储蓄卡余额</td><td style="color:var(--sub)">代付报销到账</td><td></td><td class="ar" style="color:var(--sub)">35,809</td></tr>
+            <tr><td style="padding-left:26px;color:var(--sub)">└ 待还信用卡</td><td style="color:var(--sub)">到期归还</td><td></td><td class="ar" style="color:var(--sub);color:#c62828">-31,182</td></tr>
+
+            <tr><td><strong>支付宝</strong></td><td>余额宝·理财·亲情卡</td><td><span class="tag tg-spend">消费</span></td><td class="ar">¥447,304</td></tr>
+            <tr><td style="padding-left:26px;color:var(--sub)">├ 余额宝</td><td style="color:var(--sub)">消费+应急 · ~1.06%年化</td><td></td><td class="ar" style="color:var(--sub)">380,330</td></tr>
+            <tr><td style="padding-left:26px;color:var(--sub)">├ 易方达科讯混合</td><td style="color:var(--sub)">中高风险 · 本金2万</td><td></td><td class="ar" style="color:var(--sub);color:var(--green)">21,791</td></tr>
+            <tr><td style="padding-left:26px;color:var(--sub)">└ 浦银安盛增长动力A</td><td style="color:var(--sub)">中高风险 · 本金5万</td><td></td><td class="ar" style="color:var(--sub);color:var(--red)">45,183</td></tr>
+
+            <tr><td><strong>微信</strong></td><td>零钱·零钱通</td><td><span class="tag tg-spend">消费</span></td><td class="ar">¥12,753</td></tr>
+            <tr><td style="padding-left:26px;color:var(--sub)">├ 零钱通</td><td style="color:var(--sub)">活钱理财 · 0.95%年化</td><td></td><td class="ar" style="color:var(--sub)">10,001</td></tr>
+            <tr><td style="padding-left:26px;color:var(--sub)">└ 零钱</td><td style="color:var(--sub)">即用即取 · 日常小额</td><td></td><td class="ar" style="color:var(--sub)">2,752</td></tr>
+
+            <tr><td><strong>中信证券</strong></td><td>个股·ETF·基金·现金</td><td><span class="tag tg-invest">投资</span></td><td class="ar">¥733,335</td></tr>
+            <tr><td style="padding-left:26px;color:var(--sub)">├ 股票(兆易+有色ETF)</td><td style="color:var(--sub)">400股+8万份</td><td></td><td class="ar" style="color:var(--sub)">339,524</td></tr>
+            <tr><td style="padding-left:26px;color:var(--sub)">├ 理财(招商+国金)</td><td style="color:var(--sub)">基金持仓</td><td></td><td class="ar" style="color:var(--sub)">204,791</td></tr>
+            <tr><td style="padding-left:26px;color:var(--sub)">└ 现金</td><td style="color:var(--sub)">申通观望·灵活</td><td></td><td class="ar" style="color:var(--sub)">189,020</td></tr>
+
+            <tr><td><strong>华泰证券</strong></td><td>父亲管理·大唐电信</td><td><span class="tag tg-invest">投资</span></td><td class="ar">~¥2,339,908</td></tr>
+            <tr><td style="padding-left:26px;color:var(--sub)">├ 大唐电信(27.72万股)</td><td style="color:var(--sub)">均价¥8.02 · 成本¥222.2万</td><td></td><td class="ar" style="color:var(--sub)">~2,339,568</td></tr>
+            <tr><td style="padding-left:26px;color:var(--sub)">└ 现金</td><td style="color:var(--sub)">全部加仓后剩余</td><td></td><td class="ar" style="color:var(--sub)">~340</td></tr>
+
+            <tr><td><strong>💰 实物黄金</strong></td><td>400g金条 · ¥972/g</td><td><span class="tag tg-invest">投资</span></td><td class="ar">¥388,696</td></tr>
+
+            <tr style="background:#f8f9fa;font-weight:700;">
+              <td><strong>小计（自己名下）</strong></td><td></td><td></td><td class="ar">¥6,112,831</td>
+            </tr>
+            <tr>
+              <td><strong>👨 老公·量化</strong></td><td>中信证券 · +13.9%</td><td><span class="tag tg-invest">代管</span></td><td class="ar pos">~¥1,138,868</td>
+            </tr>
+            <tr>
+              <td><strong>👨 老公·江丰电子</strong></td><td>中信证券 · +20%</td><td><span class="tag tg-invest">代管</span></td><td class="ar pos">~¥1,200,000</td>
+            </tr>
+            <tr style="background:#f8f9fa;font-weight:700;">
+              <td><strong>代管小计</strong></td><td>本金 ¥2,000,000</td><td></td><td class="ar">~¥2,338,868</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div>
+      <div class="section">
+        <div class="sec-h"><h2>账户用途分类</h2></div>
+        <div class="sec-b">
+          <table>
+            <tr><td>🏦 储蓄/备付</td><td>农行·工行·建行</td><td class="ar">¥1,601,256</td><td style="font-size:11px;color:var(--sub)">19%</td></tr>
+            <tr><td>💳 日常消费</td><td>华夏·支付宝·微信·中行</td><td class="ar">¥665,830</td><td style="font-size:11px;color:var(--sub)">8%</td></tr>
+            <tr><td>📈 投资理财</td><td>中信·华泰·江苏·黄金·代管</td><td class="ar">¥6,268,484</td><td style="font-size:11px;color:var(--sub)">74%</td></tr>
+          </table>
+          <div style="margin-top:10px;"><div class="bar"><div class="bar-f" style="width:18%;background:var(--blue)"></div><div class="bar-f" style="width:8%;background:var(--purple);margin-top:-6px;"></div><div class="bar-f" style="width:74%;background:var(--green);margin-top:-6px;"></div></div></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="sec-h"><h2>🏦 流动性分层 · 按赎回时效</h2></div>
+        <div class="sec-b">
+          <table>
+            <thead><tr><th style="background:#e8f5e9;">⚡ T+0 即时可用</th><th>用途</th><th class="ar">金额</th></tr></thead>
+            <tr><td>余额宝</td><td>消费+应急 · ~1.06%</td><td class="ar"><strong>¥380,330</strong></td></tr>
+            <tr><td>农行·活期</td><td>应急+中信中转</td><td class="ar">209,510</td></tr>
+            <tr><td>华夏·活期</td><td>工资缓冲·代付</td><td class="ar">168,286</td></tr>
+            <tr><td>工行·活期</td><td>房贷即时缓冲</td><td class="ar">55,000</td></tr>
+            <tr><td>建行·龙钱宝1号</td><td>活期 · ~2%</td><td class="ar">43,591</td></tr>
+            <tr><td>中行·活期</td><td>含待还信用卡¥31,182</td><td class="ar">35,809</td></tr>
+            <tr><td>微信·零钱通</td><td>活钱理财 · 0.95%年化</td><td class="ar">10,001</td></tr>
+            <tr><td>微信·零钱</td><td>即用即取</td><td class="ar">2,752</td></tr>
+            <tr><td>中信·现金</td><td>紧急备用 · 银证转账即时</td><td class="ar">189,020</td></tr>
+            <tr><td>华泰·现金</td><td>紧急备用 · 银证转账即时</td><td class="ar">~340</td></tr>
+            <tr style="font-weight:700;background:#e8f5e9;"><td>T+0 小计</td><td>即时可用 · 含证券现金</td><td class="ar">¥1,094,639</td></tr>
+          </table>
+          <table style="margin-top:14px;">
+            <thead><tr><th style="background:#fff3e0;">⏱ T+1 次日到账</th><th>用途</th><th class="ar">金额</th></tr></thead>
+            <tr><td>工行·天天盈2号</td><td>黄金储备 · 1.74%</td><td class="ar">200,000</td></tr>
+            <tr><td>工行·天天盈1号</td><td>房贷备付 · 1.73%</td><td class="ar">130,540</td></tr>
+            <tr><td>农行·理财(T+1)</td><td>本金¥150,000×2笔 · ¥165,148+¥158,128</td><td class="ar">323,276</td></tr>
+            <tr><td>江苏·活钱理财</td><td>RMB活钱 · 1.42%</td><td class="ar">35,799</td></tr>
+            <tr style="font-weight:700;background:#fff3e0;"><td>T+1 小计</td><td>提前1天即可动用</td><td class="ar">¥689,615</td></tr>
+          </table>
+          <table style="margin-top:14px;">
+            <thead><tr><th style="background:#fce4ec;">📅 T+2 / 锁定 / 定期</th><th>到期日/锁定期</th><th class="ar">金额</th></tr></thead>
+            <tr><td>农行·理财(7/8到期)</td><td>本金¥500,000 · 2026.7.8赎回</td><td class="ar">507,513</td></tr>
+            <tr style="background:#fce4ec;"><td colspan="3" style="font-weight:600;font-size:11px;padding:6px 14px;">💵 美元产品 · RMB为参考值(汇率浮动)</td></tr>
+            <tr><td>江苏·$理财 A</td><td>T+2 · $16,227 · 2.30%年化</td><td class="ar">~110,053</td></tr>
+            <tr><td>江苏·$理财 B</td><td>T+2 · $13,155 · 1.93%年化</td><td class="ar">~89,217</td></tr>
+            <tr><td>江苏·$12,000定存</td><td>2027/2/1到期 · 3%</td><td class="ar">~81,374</td></tr>
+            <tr><td>江苏·$10,000定存</td><td>2026/8/24到期 · 3%</td><td class="ar">~67,812</td></tr>
+            <tr><td>建行·嘉鑫30天</td><td>30天滚动 · ~3%</td><td class="ar">60,000</td></tr>
+            <tr><td>建行·嘉鑫7天</td><td>7天滚动 · ~2.5%</td><td class="ar">33,000</td></tr>
+            <tr><td>支付宝·中高风险基金</td><td>主动赎回</td><td class="ar">66,974</td></tr>
+            <tr style="font-weight:700;background:#fce4ec;"><td>锁定/定期 小计</td><td>不可随意支取</td><td class="ar">¥1,015,943</td></tr>
+          </table>
+          <div class="al-yellow" style="margin-top:10px;margin-bottom:0;"><strong>总流动性储备 ¥2,800,197。</strong>T+0 ¥109.5万(含证券现金¥18.9万) + T+1 ¥69.0万 + T+2/锁定 ¥101.6万。</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="sec-h"><h2>🏠 房贷信息</h2></div>
+        <div class="sec-b">
+          <div class="cf-row"><span class="cf-l">贷款总额</span><span class="cf-a">¥7,730,000</span></div>
+          <div class="cf-row"><span class="cf-l">利率</span><span class="cf-a" style="color:var(--green)">2.9%</span></div>
+          <div class="cf-row"><span class="cf-l">月供</span><span class="cf-a" style="color:var(--red)">¥32,590</span></div>
+          <div class="cf-row"><span class="cf-l">已还本金（含提前还款200万）</span><span class="cf-a">¥2,277,635</span></div>
+          <div class="cf-row"><span class="cf-l">剩余本金</span><span class="cf-a" style="color:var(--red);font-size:18px;">¥5,452,365</span></div>
+          <div class="cf-row"><span class="cf-l">剩余期限</span><span class="cf-a">338期 (~28年)</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== TAB 1: 投资组合 ===== -->
+<div class="tab-content" id="t1">
+  <!-- 饼图 -->
+  <div class="section">
+    <div class="sec-h"><h2>📊 资产配置总览</h2><span class="sub">金融资产 ¥851.4万 | 成熟投资年化 +7.5%</span></div>
+    <div class="sec-b">
+      <div style="display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:20px;">
+        <svg id="donutChart" viewBox="0 0 320 320" width="300" height="300"></svg>
+        <div id="donutLegend" style="font-size:12px;min-width:240px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 配置建议 -->
+  <div class="section">
+    <div class="sec-h"><h2>🎯 配置诊断 & 调整建议</h2></div>
+    <div class="sec-b">
+      <table>
+        <thead><tr><th>类别</th><th class="ar">当前占比</th><th class="ar">建议占比</th><th>方向</th><th>具体行动</th></tr></thead>
+        <tbody>
+          <tr><td>活钱备付</td><td class="ar">10.7%</td><td class="ar">10%</td><td style="color:var(--green)">✓ 接近</td><td style="font-size:12px;">农行活期已降至¥21万，基本合理</td></tr>
+          <tr><td>消费浮存</td><td class="ar">5.0%</td><td class="ar">3%</td><td style="color:#e8853b">↓ 略高</td><td style="font-size:12px;">余额宝¥38万=7.6个月。但转出麻烦暂不动，后续加仓走农行</td></tr>
+          <tr><td>老公代管</td><td class="ar">27.7%</td><td class="ar">25%</td><td style="color:#e8853b">↓ 关注</td><td style="font-size:12px;">量化+13.9%(73天)·江丰+20%(34天)，待满6月后再评估</td></tr>
+          <tr style="background:#fff5f5;"><td>父亲代管</td><td class="ar">27.7%</td><td class="ar">20%</td><td style="color:var(--red)">↓ 单票风险</td><td style="font-size:12px;"><strong>大唐电信一股占家庭金融资产27.7%。</strong>建议与父亲沟通适度分散</td></tr>
+          <tr><td>自管投资</td><td class="ar">8.6%</td><td class="ar">12%</td><td style="color:var(--green)">↑ 推进中</td><td style="font-size:12px;">中信已加仓兆易+有色ETF。¥18.9万现金可部署申通</td></tr>
+          <tr><td>稳健理财</td><td class="ar">16.2%</td><td class="ar">18%</td><td style="color:var(--green)">↑ 接近</td><td style="font-size:12px;">江苏美元亏损来自汇率，产品端健康，等待汇率回升</td></tr>
+          <tr><td>黄金</td><td class="ar">5.0%</td><td class="ar" style="font-weight:700;">7-8%</td><td style="color:var(--green)">↑ 重点增</td><td style="font-size:12px;">当前440g→目标600-690g，工行定投每次10g逢低加仓</td></tr>
+        </tbody>
+      </table>
+      <div class="al-yellow" style="margin-top:10px;margin-bottom:0;">
+        <strong>⚠️ 核心风险：</strong>代管投资(老公+父亲)合计占55.4%，叠加父亲单票集中，家庭财富与少数几只股票高度绑定。余额宝¥38万过多(7.6个月消费)。<br>
+        <strong>💡 优先事项：</strong>① 黄金增持至600g ② 中信¥18.9万+农行活期→部署申通 ③ 与父亲沟通大唐适度分散 ④ 余额宝维持现状不动。
+      </div>
+    </div>
+  </div>
+
+  <!-- 代管 -->
+  <div class="section">
+    <div class="sec-h"><h2>👨‍👩‍👦 代管投资</h2><span class="sub">本金¥422.2万 · 市值~¥467.9万 · +10.8%</span></div>
+    <div class="sec-b">
+      <div class="grid2">
+        <div class="sub-sec">
+          <h3>👨 老公管理 · 中信证券</h3>
+          <table>
+            <tr><td>量化投资</td><td class="ar">本金¥100万</td><td class="ar">市值~¥113.9万</td><td class="ar pos">+13.9%</td></tr>
+            <tr><td>江丰电子</td><td class="ar">本金¥100万</td><td class="ar">市值~¥120万</td><td class="ar pos">+20%</td></tr>
+            <tr style="font-weight:700;background:#f8f9fa;"><td>小计</td><td class="ar">¥200万</td><td class="ar">~¥233.9万</td><td class="ar pos">+¥33.9万</td></tr>
+          </table>
+          <div class="al-blue" style="margin-top:8px;margin-bottom:0;">老公投资能力已验证（量化+13.9%·江丰+20%），建议每月要一次账户截图跟踪。</div>
+        </div>
+        <div class="sub-sec">
+          <h3>👴 父亲管理 · 华泰证券</h3>
+          <table>
+            <tr><td>大唐电信</td><td class="ar">277,200股</td><td class="ar">均价¥8.02</td><td class="ar">成本¥222.2万</td></tr>
+            <tr><td>当前市值(估)</td><td class="ar">¥8.44/股</td><td class="ar">~¥234万</td><td class="ar pos">浮盈+¥11.8万(+5.3%)</td></tr>
+            <tr><td>现金(已加仓)</td><td class="ar"></td><td class="ar">~¥340</td><td></td></tr>
+            <tr style="font-weight:700;background:#f8f9fa;"><td>华泰合计</td><td class="ar"></td><td class="ar">~¥2,339,908</td><td class="ar pos">整体+5.3%</td></tr>
+          </table>
+          <div class="al-yellow" style="margin-top:8px;margin-bottom:0;"><strong>⚠️ 单票集中度90%。</strong>父亲全权管理不干预，但需心中有数。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 个人管理理财 -->
+  <div class="section">
+    <div class="sec-h"><h2>💼 个人管理理财</h2><span class="sub">本金¥173万 · 市值~¥178万</span></div>
+    <div class="sec-b">
+      <div class="grid2">
+        <div class="sub-sec">
+          <h3>中信证券 · 自管</h3>
+          <table>
+            <tr><td>🔵 兆易创新(603986)</td><td class="ar">400股</td><td class="ar">均价¥480.15</td><td class="ar">成本¥19.2万</td></tr>
+            <tr><td>🟢 有色金属ETF(华夏)</td><td class="ar">80,000份</td><td class="ar">¥1.9119</td><td class="ar">成本¥15.3万</td></tr>
+            <tr><td>招商中证2000</td><td class="ar"></td><td class="ar">本金¥10万</td><td class="ar pos">¥105,890</td></tr>
+            <tr><td>国金量化C</td><td class="ar"></td><td class="ar">本金¥10万</td><td class="ar neg">¥99,253</td></tr>
+            <tr><td>🟡 申通快递(002468)</td><td class="ar">观望</td><td class="ar">待资金部署</td><td class="ar">—</td></tr>
+            <tr style="background:#f8f9fa;"><td>现金</td><td class="ar"></td><td class="ar">申通备用·农行可追加</td><td class="ar">¥189,020</td></tr>
+          </table>
+          <div style="margin-top:8px;padding:8px;background:#fff;border-radius:6px;border:1px solid #e0e0e0;">
+            <strong style="font-size:12px;">📋 兆易创新 操作纪律</strong>
+            <table style="margin-top:4px;">
+              <tr style="background:#fff5f5;"><td>🔴 止损</td><td>¥442 (-8%)</td><td>全卖400股</td></tr>
+              <tr><td>🔵 增持1</td><td>¥461 (-4%)</td><td>+200股</td></tr>
+              <tr><td>🔵 增持2</td><td>¥442 (-8%)</td><td>+200股</td></tr>
+              <tr style="background:#f0fff4;"><td>🟢 止盈1</td><td>¥552 (+15%)</td><td>卖200股</td></tr>
+              <tr style="background:#f0fff4;"><td>🟢 止盈2</td><td>¥600 (+25%)</td><td>卖200股</td></tr>
+            </table>
+          </div>
+          <div class="al-blue" style="margin-top:6px;margin-bottom:0;">中信 ¥14.6万现金。申通观望中，也可留作灵活资金或买银华日利。</div>
+        </div>
+        <div class="sub-sec">
+          <h3>稳健理财</h3>
+          <table>
+            <tr><td>农行理财</td><td class="ar">本金¥80万</td><td class="ar pos">¥830,745</td><td class="ar">+3.8%</td></tr>
+            <tr><td>江苏·美元定存+理财</td><td class="ar">本金¥40万</td><td class="ar neg">¥385,484</td><td class="ar neg">-3.6%(汇率)</td></tr>
+            <tr><td>易方达科讯混合</td><td class="ar">本金¥2万</td><td class="ar pos">¥21,791</td><td class="ar pos">+8.96%</td></tr>
+            <tr><td>浦银安盛增长动力A</td><td class="ar">本金¥5万</td><td class="ar neg">¥45,183</td><td class="ar neg">-9.63%</td></tr>
+            <tr style="font-weight:700;background:#f8f9fa;"><td>小计</td><td class="ar">¥127万</td><td class="ar">¥1,283,203</td><td></td></tr>
+          </table>
+          <div class="al-yellow" style="margin-top:8px;margin-bottom:0;">两只均为<strong>中高风险</strong>混合基金。易方达+9%、浦银-10%，合计-4.3%。主动型基金波动大，建议设止盈止损线。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 黄金 -->
+  <div class="section">
+    <div class="sec-h"><h2>🥇 黄金投资</h2><span class="sub">440g · 成本¥39.2万 · 市值¥42.8万 · +8.9%</span></div>
+    <div class="sec-b">
+      <div class="grid2">
+        <div>
+          <table>
+            <thead><tr><th>持仓</th><th>克数</th><th>成本/g</th><th>成本</th><th>市值</th><th>盈亏</th></tr></thead>
+            <tr><td>实物金条</td><td class="ar">400g</td><td class="ar">¥883</td><td class="ar">¥353,259</td><td class="ar">¥388,696</td><td class="ar pos">+¥35,437</td></tr>
+            <tr><td>积存金(旧)</td><td class="ar">10g</td><td class="ar">¥1,005</td><td class="ar">¥10,051</td><td class="ar">¥9,717</td><td class="ar neg">-¥334</td></tr>
+            <tr><td>积存金(5/28)</td><td class="ar">30g</td><td class="ar">¥972</td><td class="ar">¥29,152</td><td class="ar">¥29,152</td><td class="ar">¥0</td></tr>
+            <tr style="font-weight:700;background:#f8f9fa;"><td>合计</td><td class="ar">440g</td><td class="ar">¥890</td><td class="ar">¥392,462</td><td class="ar">¥427,566</td><td class="ar pos">+¥35,104</td></tr>
+          </table>
+        </div>
+        <div>
+          <div class="al-green" style="margin-bottom:10px;"><strong>🎯 目标配置：</strong>总资产7-8% = ¥586,250-670,000 ≈ <strong>600-690g</strong>。<br>当前440g(5.1%)，还需增持160-250g。</div>
+          <table>
+            <thead><tr><th>策略</th><th>触发</th><th>操作</th></tr></thead>
+            <tr><td>📉 逢低加仓</td><td><¥950/g</td><td>单笔50-100g</td></tr>
+            <tr><td>📊 定投均摊</td><td>¥950-1,050</td><td>月定投20-30g</td></tr>
+            <tr><td>⏸️ 暂停</td><td>>¥1,050</td><td>持有不动</td></tr>
+            <tr><td>📈 止盈</td><td>>¥1,200</td><td>减积存金50-100g</td></tr>
+          </table>
+          <div class="al-blue" style="margin-top:10px;margin-bottom:0;">当前金价¥972，中性区间，适合定投。天天盈2号¥20万已备弹。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== TAB 2: 房产 ===== -->
+<div class="tab-content" id="t2">
+  <div class="section">
+    <div class="sec-h"><h2>🏠 房产基本情况</h2></div>
+    <div class="sec-b">
+      <div class="grid2">
+        <div>
+          <table>
+            <tr><td>房屋总价（含车位¥19万）</td><td class="ar"><strong>¥9,985,657</strong></td></tr>
+            <tr><td>位置</td><td>苏州工业园区 · 次要地段 · 无学区</td></tr>
+            <tr><td>交付</td><td>2026.5.9 交房 · 精装修</td></tr>
+            <tr><td>产证</td><td><strong style="color:var(--green)">✅ 2026.5.26 已到手</strong></td></tr>
+            <tr><td>满2年节点</td><td><strong>2028年5月26日</strong></td></tr>
+          </table>
+        </div>
+        <div>
+          <table>
+            <tr><td>贷款总额</td><td class="ar">¥7,730,000</td></tr>
+            <tr><td>利率</td><td class="ar" style="color:var(--green)">2.9% 等额本息</td></tr>
+            <tr><td>月供</td><td class="ar">¥32,590</td></tr>
+            <tr><td>剩余本金</td><td class="ar" style="color:var(--red)">¥5,452,365</td></tr>
+            <tr><td>剩余期限</td><td class="ar">338期 (~28年)</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-h"><h2>💰 已支付明细</h2></div>
+    <div class="sec-b np">
+      <table>
+        <thead><tr><th>日期</th><th>项目</th><th>支付账户</th><th class="ar">金额</th><th>备注</th></tr></thead>
+        <tr><td>2024.12.30</td><td>定金</td><td>农行</td><td class="ar">¥100,000</td><td></td></tr>
+        <tr><td>2024.12.30</td><td>首付</td><td>农行</td><td class="ar">¥1,965,657</td><td></td></tr>
+        <tr><td>2024.12.30</td><td>车位费</td><td>农行</td><td class="ar">¥190,000</td><td></td></tr>
+        <tr><td>2025.3.10</td><td>大额提前还款</td><td>—</td><td class="ar">¥2,002,219</td><td></td></tr>
+        <tr><td>2025.1~2026.5</td><td>月供(17期)</td><td>工行</td><td class="ar">¥554,030</td><td></td></tr>
+        <tr><td>2026.5.9</td><td>维修基金(房+车位)</td><td>农行</td><td class="ar">¥25,246</td><td></td></tr>
+        <tr><td>2026.5.26</td><td>契税(房+车位)</td><td>建行·华夏</td><td class="ar">¥140,080</td><td>房屋契税¥134,803可退</td></tr>
+        <tr style="font-weight:700;background:#f8f9fa;"><td colspan="2">已支付合计</td><td></td><td class="ar">¥4,977,232</td><td></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-h"><h2>📊 出售测算</h2><span class="sub">卖方付中介费1.5% · 买方付税费</span></div>
+    <div class="sec-b">
+      <div class="grid2">
+        <div>
+          <h3 style="font-size:13px;margin-bottom:8px;">买方税费对比</h3>
+          <table>
+            <tr><td></td><th>不满2年</th><th>满2年后</th></tr>
+            <tr><td>增值税</td><td class="ar" style="color:var(--red)">3.33%</td><td class="ar pos">0%</td></tr>
+            <tr><td>个税</td><td class="ar">1%</td><td class="ar">1%</td></tr>
+            <tr><td>契税</td><td class="ar">1-3%</td><td class="ar">1-3%</td></tr>
+            <tr style="font-weight:700;"><td>买方合计</td><td class="ar" style="color:var(--red)">最高8.33%</td><td class="ar pos">最高5%</td></tr>
+          </table>
+        </div>
+        <div>
+          <h3 style="font-size:13px;margin-bottom:8px;">各时点底价（成本价）</h3>
+          <table>
+            <thead><tr><th>时点</th><th>满2年</th><th class="ar">底价</th><th class="ar">建议挂牌</th><th class="ar">净到手</th></tr></thead>
+            <tr><td>2026.12</td><td>❌</td><td class="ar" style="color:var(--red)">¥1,054万</td><td class="ar">¥1,080万</td><td class="ar">¥532万</td></tr>
+            <tr><td>2027.6</td><td>❌</td><td class="ar" style="color:var(--red)">¥1,062万</td><td class="ar">¥1,100万</td><td class="ar">¥564万</td></tr>
+            <tr style="background:#f0fff4;"><td>2028.6</td><td>✅</td><td class="ar">¥1,077万</td><td class="ar pos">¥1,120万</td><td class="ar pos">¥608万</td></tr>
+            <tr><td>2028.12</td><td>✅</td><td class="ar">¥1,084万</td><td class="ar">¥1,130万</td><td class="ar">¥628万</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-h"><h2>🔮 苏州园区房价走势 & 出售策略</h2></div>
+    <div class="sec-b">
+      <div class="grid2">
+        <div>
+          <h3 style="font-size:13px;margin-bottom:6px;">市场数据（2026年）</h3>
+          <table>
+            <tr><td>园区核心板块(湖东/奥体)</td><td class="ar">-5%~+5%</td><td>✅ 企稳</td></tr>
+            <tr><td>次核心板块(独墅湖/青剑湖)</td><td class="ar" style="color:var(--red)">-15%~-27%</td><td>⚠️ 调整中</td></tr>
+            <tr><td>外围板块(车坊/娄葑)</td><td class="ar" style="color:var(--red)">-30%+</td><td>🔴 深度回调</td></tr>
+            <tr><td>园区待售量</td><td class="ar">6.5万套</td><td>供远大于求</td></tr>
+            <tr><td>全市待售量</td><td class="ar">>20万套</td><td></td></tr>
+          </table>
+        </div>
+        <div>
+          <h3 style="font-size:13px;margin-bottom:6px;">本房产情景预测</h3>
+          <table>
+            <thead><tr><th>情景</th><th>概率</th><th>2026.12</th><th>2027.6</th><th>2028.6</th></tr></thead>
+            <tr><td>🔴 悲观</td><td>30%</td><td class="ar">¥1,000万</td><td class="ar">¥970万</td><td class="ar">¥940万</td></tr>
+            <tr><td>🟡 中性</td><td>45%</td><td class="ar">¥1,050万</td><td class="ar">¥1,030万</td><td class="ar">¥1,020万</td></tr>
+            <tr><td>🟢 乐观</td><td>25%</td><td class="ar">¥1,100万</td><td class="ar">¥1,120万</td><td class="ar">¥1,150万</td></tr>
+            <tr style="font-weight:700;background:#f8f9fa;"><td>加权预期</td><td></td><td class="ar" style="color:var(--red)">¥1,047万</td><td class="ar" style="color:var(--red)">¥1,030万</td><td class="ar" style="color:var(--red)">¥1,029万</td></tr>
+          </table>
+        </div>
+      </div>
+      <div class="al-red" style="margin-top:14px;margin-bottom:4px;">
+        <strong>🔴 结论：</strong>次要地段+无学区在分化市场中属于"夹心层"。概率加权市值在未来2年均<strong>低于成本价</strong>，且差距随时间扩大。持有=确定性的利息消耗(¥1.3万/月)+不确定性的房价走势。
+      </div>
+      <div class="al-yellow" style="margin-bottom:0;">
+        <strong>策略建议：</strong>产证已到手(2026.5.26)，现在立刻挂牌¥1,100万（接受¥1,060万+）。回收资金按14%年化配置，18个月可产生约¥48万+收益，远超不满2年税费带来的挂牌折让。<br>
+        <span style="font-size:11px;color:var(--sub);">完整分析报告见 C:\Users\Administrator\房屋出售分析报告_v2.pdf</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-h"><h2>🎯 出售盈亏平衡 & 决策矩阵</h2></div>
+    <div class="sec-b">
+      <div class="cf-row" style="font-weight:700;"><span>早卖(2026.12) vs 晚卖(2028.6) — 拉到同一时点比较</span></div>
+      <table style="margin-top:8px;">
+        <thead><tr><th>投资年化</th><th>早卖 2028.6财富</th><th>晚卖 2028.6财富</th><th>差额</th><th>谁赢</th></tr></thead>
+        <tr><td>2%</td><td class="ar">¥607.7万</td><td class="ar">¥607.9万</td><td class="ar">-¥0.2万</td><td>⚖️持平</td></tr>
+        <tr style="background:#f0fff4;"><td>4%</td><td class="ar">¥624.9万</td><td class="ar">¥607.9万</td><td class="ar pos">+¥17万</td><td>✅早卖</td></tr>
+        <tr style="background:#f0fff4;"><td>6%</td><td class="ar">¥641.7万</td><td class="ar">¥607.9万</td><td class="ar pos">+¥33.8万</td><td>✅早卖</td></tr>
+        <tr style="background:#f0fff4;"><td>10%</td><td class="ar">¥677.4万</td><td class="ar">¥607.9万</td><td class="ar pos">+¥69.5万</td><td>✅早卖</td></tr>
+        <tr style="background:#f0fff4;"><td>14%</td><td class="ar">¥715.0万</td><td class="ar">¥607.9万</td><td class="ar pos">+¥107.1万</td><td>✅早卖</td></tr>
+      </table>
+      <div class="al-green" style="margin-top:10px;margin-bottom:0;">
+        <strong>盈亏平衡仅需2%年化。</strong>家庭现有投资能力(综合~14%)远超此门槛。即使不满2年比满2年少卖¥40万，18个月投资收益即可覆盖差额并有盈余。
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== TAB 3: 现金流·消费 ===== -->
+<div class="tab-content" id="t3">
+  <div class="grid2">
+    <div class="section">
+      <div class="sec-h"><h2>💰 月度现金流</h2></div>
+      <div class="sec-b">
+        <h4 style="color:var(--green);margin-bottom:8px;">流入</h4>
+        <div class="cf-row"><span class="cf-l">工资+奖金</span><span class="cf-a in">+¥22,791</span></div>
+        <div class="cf-row"><span class="cf-l">老公亲情卡</span><span class="cf-a in">+¥20,000</span></div>
+        <div class="cf-row" style="font-weight:700;background:#f0fff4;margin:0 -10px;padding:6px 10px;border-radius:6px;"><span>月入</span><span class="cf-a in">+¥42,791</span></div>
+
+        <h4 style="color:var(--red);margin:16px 0 8px;">固定流出</h4>
+        <div class="cf-row"><span class="cf-l">房贷月供</span><span class="cf-a out">-¥32,590</span></div>
+        <div class="cf-row"><span class="cf-l">房租</span><span class="cf-a out">-¥11,000</span></div>
+        <div class="cf-row"><span class="cf-l">转余额宝(优化后)</span><span class="cf-a out">-¥5,000</span></div>
+        <div class="cf-row" style="font-weight:700;background:#fff5f5;margin:0 -10px;padding:6px 10px;border-radius:6px;"><span>固定流出</span><span class="cf-a out">-¥48,590</span></div>
+
+        <h4 style="color:var(--sub);margin:16px 0 8px;">消费结构（优化后）</h4>
+        <div class="cf-row"><span class="cf-l">亲情卡(优先消耗)</span><span class="cf-a">~¥15-18,000</span></div>
+        <div class="cf-row"><span class="cf-l">余额宝补足</span><span class="cf-a out">~-¥3-5,000</span></div>
+        <div class="cf-row"><span class="cf-l">微信零钱池</span><span class="cf-a out">-¥2,000</span></div>
+
+        <div style="border-top:2px solid var(--border);margin-top:12px;padding-top:10px;">
+          <div class="cf-row" style="font-weight:700;font-size:15px;"><span>🟡 月度缺口</span><span class="cf-a out" style="font-size:18px;">~-¥5,800</span></div>
+          <div style="font-size:11px;color:var(--sub);text-align:right;">优化前-¥20,799 → 改善¥15,000/月</div>
+        </div>
+        <div class="al-yellow" style="margin-top:10px;margin-bottom:0;">剩余缺口靠农行活期(¥21万)可撑<strong>约3年</strong>。</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section">
+        <div class="sec-h"><h2>📱 消费追踪 · 余额宝统一出口法</h2></div>
+        <div class="sec-b">
+          <div class="al-green" style="margin-bottom:12px;"><strong>支付顺序：</strong>亲情卡优先(老公额度先用) → 余额宝补充 → 微信零钱兜底<br>
+          <strong>支付设置：</strong>京东/抖音/淘宝/携程全部改绑支付宝余额宝。代付走华夏卡(唯一例外)。</div>
+
+          <div style="background:#f8f9fa;padding:12px;border-radius:8px;text-align:center;">
+            <div style="font-size:16px;font-weight:700;">🎯 月度消费 = ① + ②</div>
+            <div style="font-size:13px;margin-top:6px;">① 余额宝减少额 = 月初-月末 + ¥5,000(转入)<br>② 亲情卡净支出 = 支出 - 退款</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="sec-h"><h2>📊 月度消费记录</h2></div>
+        <div class="sec-b np">
+          <table>
+            <thead><tr><th>月份</th><th>余额宝月初</th><th>月末</th><th>转入</th><th>亲情卡</th><th class="ar">月消费</th></tr></thead>
+            <tr style="background:#f0fff4;"><td>2026.04</td><td class="ar">—</td><td class="ar">—</td><td class="ar">¥20,000</td><td class="ar">¥10,827</td><td class="ar"><strong>¥47,578</strong></td></tr>
+            <tr style="background:#fffdf0;"><td>2026.05</td><td class="ar">—</td><td class="ar">—</td><td class="ar">¥20,000</td><td class="ar">¥15,772</td><td class="ar"><strong>¥77,352</strong> ⚠️618</td></tr>
+            <tr><td>2026.06</td><td class="ar">—</td><td class="ar">—</td><td class="ar">¥5,000</td><td class="ar">—</td><td class="ar" style="color:var(--sub)">待填</td></tr>
+          </table>
+          <div style="padding:10px 14px;font-size:11px;color:var(--sub);">4-5月为手动审计(含旧支付路径)。6月起启用余额宝统一出口，自动计算。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== TAB 4: 分析建议 ===== -->
+<div class="tab-content" id="t4">
+  <div class="section">
+    <div class="sec-h"><h2>🔴 需立即处理</h2></div>
+    <div class="sec-b">
+      <div class="rec urgent"><div class="rec-icon">1</div><div><div class="rec-t">中信+华泰合计 ¥42.6万现金闲置</div><div class="rec-d">中信¥20.3万+华泰¥22.3万。买银华日利(511880)，年化1.5-2%，年增收¥6,400-8,500。</div></div></div>
+      <div class="rec urgent"><div class="rec-icon">2</div><div><div class="rec-t">华泰大唐电信单票集中度90%</div><div class="rec-d">25万股、¥200万成本。父亲管理不干预，但这是家庭最大单票风险敞口，需定期关注。</div></div></div>
+      <div class="rec urgent"><div class="rec-icon">3</div><div><div class="rec-t">🏠 房产：产证已到手(2026.5.26)，立即启动挂牌</div><div class="rec-d">次要地段+无学区，概率加权市值2年内均低于成本价。每多等一个月，¥1.3万利息确定消耗。挂牌¥1,100万，接受¥1,060万+。</div></div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-h"><h2>🟡 中期优化</h2></div>
+    <div class="sec-b">
+      <div class="rec important"><div class="rec-icon">4</div><div><div class="rec-t">农行↔中信资金通道已打通</div><div class="rec-d">农行活期¥21万+中信¥18.9万现金=¥39.9万灵活资金。后续加仓申通或增持股票直接用农行卡转入中信。</div></div></div>
+      <div class="rec important"><div class="rec-icon">5</div><div><div class="rec-t">支付宝中高风险基金设止盈止损</div><div class="rec-d">易方达科讯(+9%)设15%止盈，浦银安盛(-10%)设-15%止损。中高风险产品需主动管理。</div></div></div>
+      <div class="rec important"><div class="rec-icon">6</div><div><div class="rec-t">老公账户每月要截图</div><div class="rec-d">¥200万本金表现优异(+20%)，但需要定期追踪，不能只转钱不管结果。</div></div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-h"><h2>🟢 已做得很好的</h2></div>
+    <div class="sec-b">
+      <div class="rec optimize"><div class="rec-icon">✓</div><div><div class="rec-t">工行天天盈+建行梯次理财→资金效率大幅提升</div><div class="rec-d">工行¥39.6万天天盈(1.73%)+建行¥13.7万梯次理财(加权2.6%)，年增收约¥8,500。</div></div></div>
+      <div class="rec optimize"><div class="rec-icon">✓</div><div><div class="rec-t">支付优化→月度缺口从¥2.1万降至¥5.8千</div><div class="rec-d">亲情卡优先+余额宝统一出口，没少花一分钱，纯靠支付顺序调整。</div></div></div>
+      <div class="rec optimize"><div class="rec-icon">✓</div><div><div class="rec-t">黄金440g(+8.9%)+投资组合整体+13.2%</div><div class="rec-d">¥567万本金产生¥74.6万回报。老公量化+13.9%·江丰+20%、华泰+5.3%、黄金+8.9%。</div></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">个人财务仪表板 · 数据截至 2026年5月28日 · 建议每月末更新一次</div>
+</div>
+
+<script>
+function sw(n) {
+  document.querySelectorAll('.tab').forEach(function(t,i){t.classList.toggle('active',i===n)});
+  document.querySelectorAll('.tab-content').forEach(function(c,i){c.classList.toggle('active',i===n)});
+}
+
+;(function(){
+try {
+var total = 845.2; // 万
+var data = [
+  {label:'活钱备付', sub:'T+0/T+1 · 农行工行建行华夏', val:80.69, pct:9.5, color:'#5899c2', ret:'+1.5%', ann:'1.5%', mature:true, note:'T+0¥109.5万+T+1¥69.0万'},
+  {label:'消费浮存', sub:'余额宝·微信·中行', val:42.89, pct:5.1, color:'#9370b8', ret:'+1.1%', ann:'1.1%', mature:true, note:'余额宝~1.06%·不动'},
+  {label:'老公代管', sub:'量化+13.9%·江丰+20%·¥200万本金', val:233.89, pct:27.7, color:'#48b874', ret:'+16.9%', ann:'118.4%', mature:false, note:'仅73天/34天'},
+  {label:'父亲代管', sub:'华泰·大唐电信·¥222万成本', val:233.99, pct:27.7, color:'#e8853b', ret:'+5.3%', ann:'5.1%', mature:true, note:'5/29追加¥22.2万'},
+  {label:'自管投资', sub:'中信·股票+ETF+基金+现金', val:73.33, pct:8.7, color:'#d9534f', ret:'+1.0%', ann:'—', mature:false, note:'农行↔中信联通'},
+  {label:'稳健理财', sub:'农行+江苏+建行定期+支付宝', val:137.79, pct:16.3, color:'#5bb8c4', ret:'+1.3%', ann:'1.8%', mature:true, note:'含建行梯次+汇率浮亏'},
+  {label:'黄金', sub:'积存金40g+实物400g', val:42.76, pct:5.1, color:'#d4a843', ret:'+8.9%', ann:'8.2%', mature:true, note:'395天'}
+];
+
+var svg = document.getElementById('donutChart');
+var legend = document.getElementById('donutLegend');
+if(!svg||!legend) return;
+
+var cx=160, cy=160, r1=130, r2=80;
+var NS = 'http://www.w3.org/2000/svg';
+var angle = -90;
+var html = '';
+
+data.forEach(function(d,i){
+  var deg = d.pct/100 * 360;
+  var startAngle = angle * Math.PI/180;
+  var endAngle = (angle+deg) * Math.PI/180;
+  angle += deg;
+
+  // outer arc points
+  var x1o = cx + r1*Math.cos(startAngle), y1o = cy + r1*Math.sin(startAngle);
+  var x2o = cx + r1*Math.cos(endAngle), y2o = cy + r1*Math.sin(endAngle);
+  // inner arc points
+  var x1i = cx + r2*Math.cos(startAngle), y1i = cy + r2*Math.sin(startAngle);
+  var x2i = cx + r2*Math.cos(endAngle), y2i = cy + r2*Math.sin(endAngle);
+
+  var large = deg > 180 ? 1 : 0;
+
+  var path = document.createElementNS(NS,'path');
+  var dattr = 'M'+x1o.toFixed(1)+','+y1o.toFixed(1)+
+    ' A'+r1+','+r1+' 0 '+large+',1 '+x2o.toFixed(1)+','+y2o.toFixed(1)+
+    ' L'+x2i.toFixed(1)+','+y2i.toFixed(1)+
+    ' A'+r2+','+r2+' 0 '+large+',0 '+x1i.toFixed(1)+','+y1i.toFixed(1)+' Z';
+  path.setAttribute('d',dattr);
+  path.setAttribute('fill',d.color);
+  path.setAttribute('stroke','#fff');
+  path.setAttribute('stroke-width','1.5');
+  path.setAttribute('opacity','0.9');
+  path.innerHTML = '<title>'+d.label+': ¥'+d.val.toFixed(1)+'万 ('+d.ret+')</title>';
+  svg.appendChild(path);
+
+  // legend
+  var cls = d.mature ? '' : ' style="opacity:0.7"';
+  html += '<div'+cls+'><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:'+d.color+';margin-right:6px;vertical-align:middle;"></span>';
+  html += '<b>'+d.label+'</b> <span style="color:#888">'+d.sub+'</span>';
+  html += '<div style="margin-left:18px;"><span style="font-size:14px;font-weight:700;">¥'+d.val.toFixed(1)+'万 ('+d.pct.toFixed(1)+'%)</span>';
+  html += ' · 收益率 <b style="color:'+(d.ret.charAt(0)==='+'?'var(--green)':'var(--red)')+'">'+d.ret+'</b>';
+  html += ' · 年化 <b>'+(d.mature?d.ann:'<span style="color:#e8853b">'+d.ann+' ⚠️短期</span>')+'</b>';
+  if(d.note) html += ' <span style="color:#999;font-size:11px;">'+d.note+'</span>';
+  html += '</div></div>';
+});
+
+// center text
+var text = document.createElementNS(NS,'text');
+text.setAttribute('x',cx); text.setAttribute('y',cy-10);
+text.setAttribute('text-anchor','middle');
+text.setAttribute('font-size','18'); text.setAttribute('font-weight','700');
+text.setAttribute('fill','#333');
+text.textContent = '¥845.2万';
+svg.appendChild(text);
+
+var sub = document.createElementNS(NS,'text');
+sub.setAttribute('x',cx); sub.setAttribute('y',cy+16);
+sub.setAttribute('text-anchor','middle');
+sub.setAttribute('font-size','11'); sub.setAttribute('fill','#888');
+sub.textContent = '成熟投资年化 +7.5%';
+svg.appendChild(sub);
+
+legend.innerHTML = html;
+} catch(e) { console.error('Chart error:', e); }
+})();
+</script>
+</body>
+</html>
